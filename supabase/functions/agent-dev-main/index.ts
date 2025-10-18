@@ -1,6 +1,7 @@
 // Importa as bibliotecas necessárias do Deno.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import OpenAI from "npm:openai"
+import { Resend } from "npm:resend"
 
 // Define cabeçalhos CORS para permitir que a função seja chamada de qualquer lugar.
 const corsHeaders = {
@@ -39,18 +40,35 @@ serve(async (req) => {
             const openaiClient = new OpenAI({ apiKey: openaiApiKey });
             
             const details = payload.details ?? "um negócio";
-            // PROMPT OTIMIZADO PARA PRECISÃO
             const prompt = `Sua tarefa é gerar exatamente 3 slogans para o negócio a seguir. Responda APENAS com a lista numerada dos slogans e nada mais.\n\nNegócio: "${details}"`;
 
             const completion = await openaiClient.chat.completions.create({
               model: "gpt-3.5-turbo",
-              messages: [
-                { role: "user", content: prompt }
-              ],
+              messages: [ { role: "user", content: prompt } ],
             });
             
             const slogans = completion.choices[0].message.content;
             console.log(`INFO: Resposta da OpenAI recebida:\n${slogans}`);
+
+            // 4. INTELIGÊNCIA: Reporta o sucesso da missão (Envia o e-mail).
+            const resendApiKey = Deno.env.get("RESEND_API_KEY");
+            if (resendApiKey) {
+              console.log("INFO: Segredo RESEND_API_KEY recuperado com sucesso.");
+              try {
+                const resend = new Resend(resendApiKey);
+                await resend.emails.send({
+                  from: "agent-dev@resend.dev",
+                  to: "vasconcelos.itpengenharia@gmail.com",
+                  subject: "AgentDev: Novos Slogans Gerados",
+                  html: `<p>Novos slogans gerados para o cliente:</p><pre>${slogans}</pre>`,
+                });
+                console.log("INFO: Email de notificação enviado com sucesso via Resend.");
+              } catch (emailErr) {
+                console.error("ERROR: Falha ao enviar email via Resend:", emailErr);
+              }
+            } else {
+              console.warn("WARN: Segredo RESEND_API_KEY não encontrado.");
+            }
 
           } catch (err) {
             console.error("ERROR: Erro ao se comunicar com a API da OpenAI:", err);
