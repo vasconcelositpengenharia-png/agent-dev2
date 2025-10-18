@@ -24,32 +24,33 @@ serve(async (req) => {
     const payload = await req.json()
     console.log("INFO: Payload recebido com sucesso:", JSON.stringify(payload, null, 2))
 
-    // 1. INTELIGÊNCIA: Extrai a informação chave do payload.
     const selectedPlan = payload.plan;
     console.log(`INFO: Plano selecionado identificado: ${selectedPlan}`);
 
-    // 2. INTELIGÊNCIA: Toma uma decisão com base na informação.
     switch (selectedPlan) {
       case "Site Inteligente Avançado":
         console.log("INFO: Iniciando fluxo para Site Inteligente Avançado.");
         
-        // Busca segura do segredo APENAS para este fluxo.
         const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
         if (openaiApiKey) {
           console.log("INFO: Segredo OPENAI_API_KEY recuperado com sucesso.");
 
-          // 3. INTELIGÊNCIA: Executa a ação criativa (Chama a OpenAI).
           try {
             const openaiClient = new OpenAI({ apiKey: openaiApiKey });
+            
+            const details = payload.details ?? "um negócio";
+            // PROMPT OTIMIZADO PARA PRECISÃO
+            const prompt = `Sua tarefa é gerar exatamente 3 slogans para o negócio a seguir. Responda APENAS com a lista numerada dos slogans e nada mais.\n\nNegócio: "${details}"`;
+
             const completion = await openaiClient.chat.completions.create({
               model: "gpt-3.5-turbo",
               messages: [
-                { role: "user", content: "Gere um slogan para uma casa de materiais de construção" }
+                { role: "user", content: prompt }
               ],
             });
             
-            const slogan = completion.choices[0].message.content;
-            console.log(`INFO: Resposta da OpenAI recebida: ${slogan}`);
+            const slogans = completion.choices[0].message.content;
+            console.log(`INFO: Resposta da OpenAI recebida:\n${slogans}`);
 
           } catch (err) {
             console.error("ERROR: Erro ao se comunicar com a API da OpenAI:", err);
@@ -68,7 +69,6 @@ serve(async (req) => {
         break;
     }
 
-    // Retorna uma resposta de sucesso.
     return new Response(JSON.stringify({ message: "Dados recebidos com sucesso pelo AgentDev e plano identificado." }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
